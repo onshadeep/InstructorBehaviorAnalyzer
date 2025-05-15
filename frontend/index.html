@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Instructor Behavior Analyzer</title>
+</head>
+<body>
+  <h1>Instructor Behavior Analyzer</h1>
+  <form id="analyze-form">
+    <input type="text" id="videoId" placeholder="Enter Vimeo Video ID" required>
+    <button type="submit">Analyze</button>
+  </form>
+  <pre id="result"></pre>
+  <script>
+    document.getElementById("analyze-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const videoId = document.getElementById("videoId").value;
+      const res = await fetch("/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ video_id: videoId })
+      });
+      const data = await res.json();
+      document.getElementById("result").textContent = data.analysis || data.error;
+    };
+  </script>
+</body>
+</html>
