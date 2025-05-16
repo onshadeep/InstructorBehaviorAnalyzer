@@ -52,15 +52,18 @@ def analyze_video(video_id):
     {plain_text}
     """
 
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a class behavior reviewer."},
-            {"role": "user", "content": prompt}
-        ]
-    )
+#    response = client.chat.completions.create(
+#       model="gpt-3.5-turbo",
+#        messages=[
+#            {"role": "system", "content": "You are a class behavior reviewer."},
+#            {"role": "user", "content": prompt}
+#        ]
+#    )
 
-    analysis = response.choices[0].message.content
+#    analysis = response.choices[0].message.content
+
+# Instead of calling OpenAI
+     analysis = "Instructor rating: 5\nNo red flags detected.\n(Virtual output for testing)"
 
     os.makedirs("analysis", exist_ok=True)
     analysis_path = f"analysis/{video_id}.txt"
