@@ -75,7 +75,7 @@ def analyze_video(video_id):
     # analysis = response.choices[0].message.content
 
     # Instead of calling OpenAI, use mock data for testing
-    analysis = "Instructor rating: 5\nNo red flags detected.\n(Virtual output for testing)"
+    analysis = "Instructor rating: 3.5/5\nNo red flags detected.\n(Virtual output for testing)"
 
     # Save the analysis to a file
     os.makedirs("analysis", exist_ok=True)
