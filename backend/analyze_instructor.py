@@ -61,8 +61,7 @@ def analyze_video(video_id):
 #    )
 
 #    analysis = response.choices[0].message.content
-
-# Instead of calling OpenAI
+     # Instead of calling OpenAI
      analysis = "Instructor rating: 5\nNo red flags detected.\n(Virtual output for testing)"
 
     os.makedirs("analysis", exist_ok=True)
