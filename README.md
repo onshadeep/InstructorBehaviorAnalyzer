@@ -18,3 +18,8 @@ Steps to run the project on your development server:
 01. 
 02. 
 03. 
+
+Refrences:
+
+01. https://textblob.readthedocs.io/en/dev/install.html
+02. 
