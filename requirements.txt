@@ -1,5 +1,6 @@
 flask
-openai
 webvtt-py
 requests
 python-dotenv
+textblob
+

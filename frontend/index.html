@@ -3,26 +3,115 @@
 <head>
   <meta charset="UTF-8">
   <title>Instructor Behavior Analyzer</title>
+
+  <!-- ✅ Google Font: Roboto -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- ✅ Bootstrap -->
+  <link rel="stylesheet"
+        href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+  <style>
+    /* ✅ Global Font Styling */
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: #f9fafb;
+      padding: 2rem;
+      color: #333;
+    }
+
+    .container {
+      max-width: 800px;
+      background: #fff;
+      padding: 2rem 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    h1, h5, h6 {
+      font-weight: 700;
+    }
+
+    label, li, td, th, p {
+      font-size: 16px;
+      font-weight: 400;
+    }
+
+    .report-box {
+      white-space: pre-wrap;
+      font-family: 'Montserrat', sans-serif;
+      background: #f0f0f0;
+      padding: 1.2rem;
+      border-radius: 8px;
+      margin-top: 1.5rem;
+    }
+
+    .risk-signal {
+      font-style: italic;
+      color: #c00;
+    }
+  </style>
 </head>
 <body>
-  <h1>Instructor Behavior Analyzer</h1>
-  <form id="analyze-form">
-    <input type="text" id="videoId" placeholder="Enter Vimeo Video ID" required>
-    <button type="submit">Analyze</button>
-  </form>
-  <pre id="result"></pre>
-  <script>
-    document.getElementById("analyze-form").onsubmit = async (e) => {
-      e.preventDefault();
-      const videoId = document.getElementById("videoId").value;
-      const res = await fetch("/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ video_id: videoId })
-      });
-      const data = await res.json();
-      document.getElementById("result").textContent = data.analysis || data.error;
-    };
-  </script>
+  <div class="container">
+    <h2 class="text-center">📊 Instructor Behavior Analyzer</h2>
+
+    <div class="form-group mt-5">
+      <label for="video_id">Enter Vimeo <b>Video ID</b></label>
+      <input type="text" id="video_id" class="form-control" placeholder="e.g., 1234567890" />
+    </div>
+
+    <button class="btn btn-primary" onclick="analyze()">Analyze</button>
+
+    <div id="result" class="report-box mt-4" style="display: none;"></div>
+  </div>
+
+<script>
+async function analyze() {
+  const videoId = document.getElementById("video_id").value;
+  const resultBox = document.getElementById("result");
+  resultBox.innerHTML = "<p>Analyzing...</p>";
+  resultBox.style.display = 'block';
+
+  const response = await fetch("/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video_id: videoId })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    resultBox.innerHTML = `<div class="alert alert-danger">❌ ${data.error}</div>`;
+    return;
+  }
+
+  const redFlags = data.red_flags.length ? data.red_flags.join(", ") : "None";
+  const phrases = data.unprofessional_phrases.length ? data.unprofessional_phrases.join(", ") : "None";
+
+  const risks = data.risk_signals.map(r =>
+    `<tr><td>${r.signal}</td><td>${r.risk}</td></tr>`
+  ).join("");
+
+  resultBox.innerHTML = `
+    <h5 class="mt-3">📋 Analysis Summary</h5>
+    <ul class="list-group">
+      <li class="list-group-item"><strong>Video ID:</strong> ${data.video_id}</li>
+      <li class="list-group-item"><strong>Red Flags:</strong> ${redFlags}</li>
+	  <li class="list-group-item"><strong>Unprofessional Phrases:</strong> ${phrases}</li>
+      <li class="list-group-item"><strong>Behavior Score:</strong> ${data.behavior_score}</li>
+      <li class="list-group-item"><strong>Overall Rating:</strong> ${data.overall_rating}</li>
+
+    </ul>
+    <h6 class="mt-4">⚠️ Risk Signals</h6>
+    <table class="table table-bordered">
+      <thead class="thead-light">
+        <tr><th>Signal</th><th>Risk Weight</th></tr>
+      </thead>
+      <tbody>${risks}</tbody>
+    </table>
+  `;
+}
+</script>
+
 </body>
 </html>

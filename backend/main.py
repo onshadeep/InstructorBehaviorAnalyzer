@@ -19,12 +19,9 @@ def analyze():
         return jsonify({"error": "Video ID is required"}), 400
     try:
         result = analyze_video(video_id)
-        return jsonify({"analysis": result})
+        return jsonify(result)  # <== RETURN STRUCTURED JSON
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    # ✅ Listen on all interfaces so it's accessible via EC2 public IP
     app.run(host="0.0.0.0", port=5000, debug=True)
-    #app.run(host="0.0.0.0", port=80, debug=True)
-
