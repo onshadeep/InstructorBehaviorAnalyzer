@@ -3,19 +3,15 @@ import webvtt
 import os
 from textblob import TextBlob
 
-# ✅ Load unprofessional words from an external source
-def load_unprofessional_words_from_url(url):
+# ✅ Load list of phrases from a URL (used for unprofessional words and red flags)
+def load_phrases_from_url(url):
     try:
         response = requests.get(url)
         if response.status_code == 200:
             return [line.strip().lower() for line in response.text.splitlines() if line.strip()]
     except Exception as e:
-        print(f"Error loading unprofessional words: {e}")
+        print(f"Error loading phrases from URL: {e}")
     return []
-
-#def load_unprofessional_words(filepath="unprofessional_words.txt"):
-#    with open(filepath, "r", encoding="utf-8") as f:
-#        return [line.strip().lower() for line in f if line.strip()]
 
 def analyze_video(video_id):
     VIMEO_ACCESS_TOKEN = os.getenv("VIMEO_ACCESS_TOKEN")
@@ -56,21 +52,25 @@ def analyze_video(video_id):
     with open(transcript_path, "w") as f:
         f.write(plain_text)
 
-    # NLP Analysis
-    signals = []
+    plain_text_lower = plain_text.lower()
     red_flags = []
+    signals = []
 
-    # ✅ Load global unprofessional keyword list
-    keyword_url = "https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/en"
-    unprofessional_keywords = load_unprofessional_words_from_url(keyword_url)
-    # unprofessional_keywords = load_unprofessional_words()
-    # unprofessional_found = [word for word in unprofessional_keywords if word in plain_text.lower()]
+    # ✅ Load external word lists
+    unprofessional_url = "https://raw.githubusercontent.com/onshadeep/unprofessional_words/refs/heads/main/unprofessional_words.txt"
+    red_flag_url = "https://raw.githubusercontent.com/onshadeep/unprofessional_words/refs/heads/main/red_flags.txt"
 
-    behavior_score = 5  # Start with highest
+    unprofessional_keywords = load_phrases_from_url(unprofessional_url)
+    red_flag_phrases = load_phrases_from_url(red_flag_url)
 
-    # 1. Tone and Sentiment
+    # ✅ Analyze sentiment (tone)
     blob = TextBlob(plain_text)
     polarity = blob.sentiment.polarity
+
+    behavior_score = 5
+    tone_score = 5
+
+    # Behavior score based on sentiment
     if polarity < -0.5:
         behavior_score = 1
     elif polarity < -0.2:
@@ -80,40 +80,48 @@ def analyze_video(video_id):
     elif polarity < 0.3:
         behavior_score = 4
 
-    # 2. Red Flags
-    if "I don't care" in plain_text or "whatever" in plain_text:
-        red_flags.append("Dismissive language")
-    if "you’re wrong" in plain_text.lower():
-        red_flags.append("Blaming student")
-    if polarity < -0.2:
-        red_flags.append("Negative emotional tone")
+    # Tone score based on overall emotional tone
+    if polarity < -0.4:
+        tone_score = 2
+    elif polarity < -0.2:
+        tone_score = 3
+    elif polarity < 0:
+        tone_score = 4
 
-    # 3. Unprofessional Words
+    # ✅ Red Flags from list
+    for phrase in red_flag_phrases:
+        if phrase in plain_text_lower:
+            red_flags.append(f"Red Flag phrase: '{phrase}'")
+
+    # ✅ Unprofessional Words
     found_unprofessional = []
     for word in unprofessional_keywords:
-        if word in plain_text.lower():
+        if word in plain_text_lower:
             found_unprofessional.append(word)
             red_flags.append(f"Unprofessional phrase: '{word}'")
 
-    # 4. Reduced participation
+    # ✅ Risk signals
     if len(plain_text.split()) < 100:
         signals.append({"signal": "Reduced speech/chat participation", "risk": "Medium"})
 
-    # 5. Simulated risk signals
     signals.append({"signal": "Missed 3+ sessions in a row", "risk": "High"})
     signals.append({"signal": "Not logging into the app", "risk": "Medium"})
 
-    if "I used to love" in plain_text or "not doing that anymore" in plain_text:
+    if any(phrase in plain_text_lower for phrase in ["i used to love", "not doing that anymore"]):
         signals.append({"signal": "Skipping favorite activities", "risk": "Medium to High"})
 
-    if any(x in plain_text.lower() for x in ["i'm tired", "i can't", "why bother", "alone"]):
+    if any(phrase in plain_text_lower for phrase in ["i'm tired", "i can't", "why bother", "alone"]):
         signals.append({"signal": "Sad/withdrawn text patterns", "risk": "High"})
+
+    # ✅ Final output
+    overall_score = round((behavior_score + tone_score) / 2, 2)
 
     return {
         "video_id": video_id,
         "behavior_score": f"{behavior_score}/5",
+        "tone_score": f"{tone_score}/5",
+        "overall_rating": f"{overall_score}/5",
         "red_flags": red_flags,
-        "overall_rating": f"{behavior_score}/5",
         "unprofessional_phrases": found_unprofessional,
         "risk_signals": signals
     }
