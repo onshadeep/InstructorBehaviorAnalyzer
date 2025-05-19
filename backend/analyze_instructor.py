@@ -20,7 +20,28 @@ def analyze_video(video_id):
         "Authorization": f"Bearer {VIMEO_ACCESS_TOKEN}"
     }
 
-    # Get transcript link
+    # ✅ Fetch video metadata
+    video_meta = {}
+    try:
+        meta_res = requests.get(f"https://api.vimeo.com/videos/{video_id}", headers=headers)
+        if meta_res.status_code == 200:
+            meta = meta_res.json()
+            video_meta = {
+                "title": meta.get("name"),
+                "description": meta.get("description"),
+                "duration_seconds": meta.get("duration"),
+                "upload_date": meta.get("created_time"),
+                "stats": {
+                    "plays": meta.get("stats", {}).get("plays"),
+                    "likes": meta.get("metadata", {}).get("connections", {}).get("likes", {}).get("total"),
+                    "comments": meta.get("metadata", {}).get("connections", {}).get("comments", {}).get("total")
+                },
+                "thumbnail_url": meta.get("pictures", {}).get("sizes", [{}])[-1].get("link")
+            }
+    except Exception as e:
+        print(f"Error retrieving video metadata: {e}")
+
+    # ✅ Get transcript link
     track_res = requests.get(f"https://api.vimeo.com/videos/{video_id}/texttracks", headers=headers)
     track_data = track_res.json()
 
@@ -35,19 +56,19 @@ def analyze_video(video_id):
     if not vtt_url:
         raise Exception("No transcript available")
 
-    # Download and save VTT
+    # ✅ Download and save VTT
     vtt_response = requests.get(vtt_url)
     os.makedirs("transcripts", exist_ok=True)
     vtt_path = f"transcripts/{video_id}.vtt"
     with open(vtt_path, "wb") as f:
         f.write(vtt_response.content)
 
-    # Extract plain text
+    # ✅ Extract plain text from VTT
     plain_text = ""
     for caption in webvtt.read(vtt_path):
         plain_text += caption.text + "\n"
 
-    # Save transcript
+    # ✅ Save plain transcript
     transcript_path = f"transcripts/{video_id}.txt"
     with open(transcript_path, "w") as f:
         f.write(plain_text)
@@ -63,14 +84,13 @@ def analyze_video(video_id):
     unprofessional_keywords = load_phrases_from_url(unprofessional_url)
     red_flag_phrases = load_phrases_from_url(red_flag_url)
 
-    # ✅ Analyze sentiment (tone)
+    # ✅ Sentiment analysis
     blob = TextBlob(plain_text)
     polarity = blob.sentiment.polarity
 
     behavior_score = 5
     tone_score = 5
 
-    # Behavior score based on sentiment
     if polarity < -0.5:
         behavior_score = 1
     elif polarity < -0.2:
@@ -80,7 +100,6 @@ def analyze_video(video_id):
     elif polarity < 0.3:
         behavior_score = 4
 
-    # Tone score based on overall emotional tone
     if polarity < -0.4:
         tone_score = 2
     elif polarity < -0.2:
@@ -88,19 +107,19 @@ def analyze_video(video_id):
     elif polarity < 0:
         tone_score = 4
 
-    # ✅ Red Flags from list
+    # ✅ Red Flag phrase matching
     for phrase in red_flag_phrases:
         if phrase in plain_text_lower:
             red_flags.append(f"Red Flag phrase: '{phrase}'")
 
-    # ✅ Unprofessional Words
+    # ✅ Unprofessional words matching
     found_unprofessional = []
     for word in unprofessional_keywords:
         if word in plain_text_lower:
             found_unprofessional.append(word)
             red_flags.append(f"Unprofessional phrase: '{word}'")
 
-    # ✅ Risk signals
+    # ✅ Behavioral risk signals
     if len(plain_text.split()) < 100:
         signals.append({"signal": "Reduced speech/chat participation", "risk": "Medium"})
 
@@ -113,11 +132,12 @@ def analyze_video(video_id):
     if any(phrase in plain_text_lower for phrase in ["i'm tired", "i can't", "why bother", "alone"]):
         signals.append({"signal": "Sad/withdrawn text patterns", "risk": "High"})
 
-    # ✅ Final output
     overall_score = round((behavior_score + tone_score) / 2, 2)
 
     return {
         "video_id": video_id,
+        # **video_meta,
+        "video_data": video_meta,
         "behavior_score": f"{behavior_score}/5",
         "tone_score": f"{tone_score}/5",
         "overall_rating": f"{overall_score}/5",

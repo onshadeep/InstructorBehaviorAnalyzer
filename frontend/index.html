@@ -110,23 +110,24 @@
           resultBox.innerHTML = `<div class="alert alert-danger">❌ ${data.error}</div>`;
           return;
         }
+        console.log(data, "this is the actuall data");
 
         let redFlagsTable = "None";
         if (data.red_flags.length) {
-          redFlagsTable = `
-        <table class="table table-sm table-bordered mt-2">
-          <thead class="thead-light">
-            <tr><th>Type</th><th>Phrase</th></tr>
-          </thead>
-          <tbody>
-            ${data.red_flags.map((rf) => {
-            const match = rf.match(/^(.*?) phrase: '(.*?)'$/);
-            const type = match ? match[1] : "Unknown";
-            const phrase = match ? match[2] : rf;
-            return `<tr><td>${type}</td><td>${phrase}</td></tr>`;
-          }).join("")}
-          </tbody>
-        </table>`;
+          redFlagsTable =
+            `<table class="table table-sm table-bordered mt-2">
+              <thead class="thead-light">
+                <tr><th>Type</th><th>Phrase</th></tr>
+              </thead>
+              <tbody>
+                ${data.red_flags.map((rf) => {
+              const match = rf.match(/^(.*?) phrase: '(.*?)'$/);
+              const type = match ? match[1] : "Unknown";
+              const phrase = match ? match[2] : rf;
+              return `<tr><td>${type}</td><td>${phrase}</td></tr>`;
+            }).join("")}
+              </tbody>
+            </table>`;
         }
 
         const phrases = data.unprofessional_phrases.length ? data.unprofessional_phrases.join(", ") : "None";
@@ -134,29 +135,44 @@
           `<tr><td>${r.signal}</td><td>${r.risk}</td></tr>`
         ).join("");
 
-        resultBox.innerHTML = `
-      <div id="report-content">
-        <h5 class="mt-3">📋 Analysis Summary</h5>
-        <ul class="list-group">
-          <li class="list-group-item"><strong>Video ID:</strong> ${data.video_id}</li>
-          <li class="list-group-item"><strong>Unprofessional Phrases:</strong> ${phrases}</li>
-          <li class="list-group-item"><strong>Behavior Score:</strong> ${data.behavior_score}</li>
-          <li class="list-group-item"><strong>Tone Score:</strong> ${data.tone_score}</li>
-          <li class="list-group-item"><strong>Overall Score:</strong> ${data.overall_rating}</li>
-          <li class="list-group-item"><strong>🚩 Red Flags:</strong><br>${redFlagsTable}</li>
-        </ul>
+        console.log(risks, 'This is risks signals data');
 
-        <h6 class="mt-4">⚠️ Risk Signals</h6>
-        <table class="table table-bordered">
-          <thead class="thead-light">
-            <tr><th>Signal</th><th>Risk Weight</th></tr>
-          </thead>
-          <tbody>${risks}</tbody>
-        </table>
-      </div>
-    `;
+        resultBox.innerHTML =
+          `<div id="report-content">
+          <h5 class="mt-3">📋 Analysis Summary</h5>
+          <ul class="list-group">
+            <li class="list-group-item"><strong>Video ID:</strong> ${data.video_id}</li>
+            <li class="list-group-item"><strong>Unprofessional Phrases:</strong> ${phrases}</li>
+            <li class="list-group-item"><strong>Behavior Score:</strong> ${data.behavior_score}</li>
+            <li class="list-group-item"><strong>Tone Score:</strong> ${data.tone_score}</li>
+            <li class="list-group-item"><strong>Overall Score:</strong> ${data.overall_rating}</li>
+            <li class="list-group-item"><strong>🚩 Red Flags:</strong><br>${redFlagsTable}</li>
+          </ul>
+
+          <h6 class="mt-4">⚠️ Risk Signals</h6>
+          <table class="table table-bordered">
+            <thead class="thead-light">
+              <tr><th>Signal</th><th>Risk Weight</th></tr>
+            </thead>
+            <tbody>${risks}</tbody>
+          </table>
+        </div>`;
 
         exportBtn.dataset.videoId = data.video_id;
+
+        // ✅ Append video_meta details
+        const videoMetaHTML =
+          `<li class="list-group-item"><strong>🎬 Video Data:</strong><br>
+            <ul class="list-group">
+              <li class="list-group-item"><strong>Title:</strong> ${data.video_data?.title ?? null}</li>
+              <li class="list-group-item"><strong>Upload Date:</strong> ${formatDate(data.video_data?.upload_date ?? null)}</li>   
+              <li class="list-group-item"><strong>Duration:</strong> ${formatDuration(data.video_data?.duration_seconds ?? null)}</li>                         
+              <li class="list-group-item"><strong>Number of Plays:</strong> ${data.video_data?.stats?.plays ?? null}</li>
+            </ul>
+          </li>`;
+        const ul = resultBox.querySelector("ul.list-group");
+        ul.insertAdjacentHTML('beforeend', videoMetaHTML);
+
         exportBtn.style.display = 'inline-block';
 
       } catch (err) {
@@ -164,24 +180,47 @@
       }
     }
 
+    function formatDate(isoString) {
+      if (!isoString) return "N/A";
+      const date = new Date(isoString);
+      const options = {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      };
+      return date.toLocaleString('en-US', options);
+    }
+
+    function formatDuration(seconds) {
+      if (!seconds || isNaN(seconds)) return "N/A";
+      const hrs = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      return [
+        hrs.toString().padStart(2, '0'),
+        mins.toString().padStart(2, '0'),
+        secs.toString().padStart(2, '0')
+      ].join(':');
+    }
+
+
     function exportPDF() {
       const content = document.getElementById("report-content");
       const videoId = document.getElementById("export-btn").dataset.videoId;
       const baseFileName = `${videoId}.pdf`;
 
-      // Check for duplicates and increment name
       let fileIndex = 0;
       let filename = baseFileName;
-
       while (localStorage.getItem(filename)) {
         fileIndex++;
         filename = `${videoId}(${fileIndex}).pdf`;
       }
 
-      // Save filename used in localStorage to avoid conflict
       localStorage.setItem(filename, true);
 
-      // Try generating PDF
       try {
         const opt = {
           margin: 0.5,
@@ -205,7 +244,7 @@
       listItems.forEach(li => {
         const label = li.querySelector("strong")?.textContent?.replace(":", "") || "Item";
         const value = li.innerText.replace(label + ":", "").trim();
-        rows.push([label, `"${value}"`]);
+        rows.push([label, value]);
       });
 
       const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
